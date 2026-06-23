@@ -15,8 +15,10 @@ Three-tier LCOA:
   • CIF Europe     — + ocean freight (H2Global delivered Rotterdam comparable)
 
 Revenue: single-stream — NH3 export volume × USD price FOB Cartagena.
-Project NPV at WACC (10% default). Equity NPV at cost of equity Ke (15% default).
+Default scenario: EPI Optimized (2026 procurement). Default view: Executive.
+Project NPV at WACC (10% default). Equity NPV at cost of equity Ke (12.5% default).
 Default leverage 63/37 (ATOME Villeta cleared structure, April 2026 FID).
+Default energy: long-term hydro PPA ($55/MWh).
 """
 
 import streamlit as st
@@ -437,6 +439,11 @@ div[role="radiogroup"] label:hover {{
 # SIDEBAR — scenario selection + view toggle
 # =============================================================================
 
+ENERGY_TARIFFS = [
+    {"key": "industrial", "label": "Industrial tariff", "price_mwh": 78, "price_kwh": 0.078},
+    {"key": "hydro_ppa", "label": "Long-term hydro PPA", "price_mwh": 55, "price_kwh": 0.055},
+]
+
 with st.sidebar:
     st.markdown(f"""
     <div style="padding: 0.4rem 0 1rem 0; border-bottom: 2px solid {NAVY}; margin-bottom: 1rem;">
@@ -458,7 +465,7 @@ with st.sidebar:
         "Scenario",
         options=list(SCENARIO_LABELS.keys()),
         format_func=lambda k: SCENARIO_LABELS[k],
-        index=0,  # default to Feasibility (Arup + Fichtner) — audit-validated pitch posture
+        index=1,  # default to EPI Optimized (2026 procurement)
         label_visibility="collapsed",
     )
 
@@ -487,11 +494,11 @@ with st.sidebar:
     )
 
     ke_override = st.slider(
-        "Cost of equity (Ke)", 0.08, 0.20, 0.15, 0.005,
+        "Cost of equity (Ke)", 0.08, 0.20, 0.125, 0.005,
         format="%.3f",
         help="Required return on equity. Used to discount levered Equity FCF for Equity NPV. "
-             "Default 15% = US 10-yr Treasury (~4.5%) + Colombia country risk (~3-4%) + "
-             "renewable project premium (~5-6%).",
+             "Default 12.5% = US 10-yr Treasury (~4.5%) + Colombia country risk (~3-4%) + "
+             "renewable project premium (~4-5%).",
     )
 
     debt_share_override = st.slider(
@@ -511,8 +518,8 @@ with st.sidebar:
     )
 
     tax_rate_override = st.slider(
-        "Income tax rate", 0.0, 0.35, 0.30, 0.05,
-        format="%.2f", help="Colombia: 0.30 (FNCER) or 0.35 (general corporate)",
+        "Income tax rate", 0.0, 0.35, 0.35, 0.05,
+        format="%.2f", help="Colombia: 0.30 (FNCER) or 0.35 (general corporate). Default 35%.",
     )
 
     nh3_price_override = st.slider(
@@ -526,11 +533,13 @@ with st.sidebar:
     # Scenario-aware energy default:
     #   Feasibility   → Industrial tariff ($78/MWh) — Arup-published, audit chain intact
     #   EPI Optimized → Long-term hydro PPA ($55/MWh) — internal execution case
-    energy_options = ["Industrial tariff", "Long-term hydro PPA"]
+    energy_option_labels = [
+        f"{t['label']} — ${t['price_mwh']}/MWh" for t in ENERGY_TARIFFS
+    ]
     energy_default_idx = 0 if scenario_key == "feasibility" else 1
-    energy_basis = st.radio(
+    energy_selection = st.radio(
         "Energy supply",
-        options=energy_options,
+        options=energy_option_labels,
         index=energy_default_idx,
         label_visibility="collapsed",
         help="Industrial tariff ($78/MWh): Colombian HV grid pricing — matches Arup's "
@@ -538,7 +547,12 @@ with st.sidebar:
              "Long-term hydro PPA ($55/MWh): take-or-pay agreement with EPM/ISAGEN/Celsia — "
              "Electryon's internal execution basis and a key post-FEED value-creation lever.",
     )
-    energy_price_kwh = 0.078 if energy_basis == "Industrial tariff" else 0.055
+    selected_tariff = ENERGY_TARIFFS[energy_option_labels.index(energy_selection)]
+    energy_price_kwh = selected_tariff["price_kwh"]
+    st.caption(
+        f"Active energy cost: ${selected_tariff['price_mwh']}/MWh "
+        f"(${selected_tariff['price_kwh']:.3f}/kWh)"
+    )
 
     # Sidebar context note
     st.markdown(f"""
